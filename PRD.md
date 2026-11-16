@@ -2,9 +2,9 @@
 
 **Design version:** 0.4.2  
 **Target build:** Version 1 (single-user, offline Linux)  
-**Status:** Final functional/security clarification — lock candidate; implementation not started  
+**Status:** Locked version 1 design baseline; development implementation underway (acceptance not complete)  
 **Date:** 16 November 2026  
-**Companion:** `Garage_CRM_EDD_v0.4.2.md`  
+**Companion:** `EDD.md` (locked design v0.4.2)  
 **Evidence (non-normative):** `Garage_CRM_Final_Garage_Constraints_Review_v0.4.1.md` (final gate), `Garage_CRM_Research_and_Assurance_v0.4.1.md` (startup benchmark)
 
 ## 1. Mission and non-negotiable outcomes
