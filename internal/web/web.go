@@ -49,7 +49,7 @@ type View struct {
 	Rows                                                                             []sqlite.Row
 	Record                                                                           sqlite.Row
 	Fields                                                                           []FieldView
-	Tasks, Leads, Stages, History, Lines, Members, Relations, Affiliations, Variants, Cooling []sqlite.Row
+	Tasks, Leads, Stages, History, Lines, Members, Relations, Affiliations, Variants []sqlite.Row
 	Board                                                                            map[string][]sqlite.Row
 	BoardStates                                                                      []string
 	ID                                                                               string
@@ -57,6 +57,8 @@ type View struct {
 	Attachments                                                                      []sqlite.Row
 	Emails, Phones, Interests                                                        []sqlite.Row
 	MergeCounts                                                                      map[string]int64
+
+	Cooling []sqlite.Row
 }
 type NavItem struct{ Href, Title, Icon, Name string }
 type Server struct {
