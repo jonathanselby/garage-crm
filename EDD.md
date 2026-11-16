@@ -1,10 +1,10 @@
 # Garage CRM — Engineering Design Document
 
-**Design version:** 0.4.2  
+**Design version:** 0.4.3  
 **Target build:** Version 1, single-user/offline Linux  
 **Status:** Locked version 1 engineering baseline; **not** fully implementation-verified  
 **Date:** 16 November 2026  
-**Companion PRD:** `PRD.md` (locked design v0.4.2)  
+**Companion PRD:** `PRD.md` (design v0.4.3)  
 **Build publication method:** `docs/Garage-Publication-Method.md` (provided as Learnings 9)
 
 ## 1. Mission, constraints and engineering doctrine
@@ -183,3 +183,11 @@ Follow the uploaded Garage GitHub Publication Learnings exactly: lock PRD/EDD; a
 ## 13. Decision
 
 **Architecture: design lock candidate after final Garage review.** The v1 functional scope and v2 migration provisions are retained. Documentary consistency checks and review disposition are in `Garage_CRM_Final_Garage_Constraints_Review_v0.4.1.md`. Implementation, runtime performance, security and v2 importer compatibility remain unverified until actual code and later v2 exist; this is not release certification. The v1 security boundary is one trusted Linux OS account, not a hostile multi-user machine; plaintext data on an unlocked/unprotected disk and copied export files remain exposed to OS-level compromise or anyone given those files.
+
+## Amendment v0.4.3 — deterministic cooling
+
+- Add a read-only `Service.CoolingItems(brand)` UNION on existing SQLite opportunities and brand_people with correlated activities/tasks lookups; RFC3339 UTC timestamps are compared using `julianday`.
+- Live opportunity takes precedence over the same brand's primary linked contact. Contact activity is brand-scoped to prevent one brand's interactions masking another's stale relationship.
+- Enforce brand predicates via query parameters, closed/archived exclusions, a 50-row visible limit and an independent full count using a window function; no database migration or new dependency.
+- Surface one stat tile and record-linked panel through existing authenticated HTML templates. Query errors must not silently display a misleading empty state.
+- App-level workflow tests and web-rendering/escaping tests accompany this change. No alteration to unrelated v1 acceptance obligations.
