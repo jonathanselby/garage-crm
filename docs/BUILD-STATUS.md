@@ -1,13 +1,16 @@
 # Garage CRM — Development build status
 
-**Status:** `0.1.0-dev`, not an accepted Version 1 release. **Locked contract:** PRD/EDD v0.4.2 and the attached Garage GitHub Publication Learnings (9).
+**Status:** `0.1.0-dev`, not an accepted Version 1 release. **Locked contract:** PRD/EDD v0.4.3 and the attached Garage GitHub Publication Learnings (9).
 
 ## Implemented, locally verified
 - Single Go executable; compiled Linux AMD64 with SQLite system library.
 - Brand, offer, person, organisation, lead, opportunity, campaign and task creation/edit/archive; linked brand contact relationships and roles; campaign variants, snapshot and manually logged outcomes; Kanban and My Day; manual activity + follow-up; relationship merges with restrictive consent; personal redaction with export tests.
+- Read-only cooling detector for open deals and brand-linked prospects with no next action; dashboard tile, direct record links and brand-aware query; regression and UI tests added (CI evidence governs whether they pass).
 - Prepared SQLite, FK constraints, revision checks, status/history, system SQLite backup; portable ZIP with all tables and binary attachments; fail-before-replace import into a fresh directory.
 - Loopback listener with local one-time starter page, protected session, Host/Origin/CSRF, output escaping, forced attachment download, bounded input.
 - Automated Go tests covering representative campaigns, brand suppression, conversion, stage concurrency, merge, permanent redaction + archive, corrupt import and local browser security.
+
+The fixed 14-day beta cooling alert does not satisfy all configurable-alert or broader v1 acceptance requirements.
 
 ## Known missing or partially tested PRD requirements — release blocking
 - Comprehensive CRM field UI, saved searches/views, fully typed custom fields, bulk edit/tag, duplicate suggestions/merge preview quality, complete organisation history/parent flows, contact merge conflict reconciliation and restore/undo UX.
