@@ -2,7 +2,7 @@
 
 An offline-first, single-user CRM for Linux, built as one Go application with SQLite and a polished local browser interface.
 
-**Build status:** `0.1.0-dev` — development build, not a v1 release. The governing product and engineering specifications are `PRD.md` / `EDD.md` v0.4.2. The implemented subset and the outstanding acceptance gates are documented in `docs/BUILD-STATUS.md`; the application must not be described as functionally complete or security certified.
+**Build status:** `0.1.0-dev` — development build, not a v1 release. The governing product and engineering specifications are `PRD.md` / `EDD.md` v0.4.3. The implemented subset and the outstanding acceptance gates are documented in `docs/BUILD-STATUS.md`; the application must not be described as functionally complete or security certified.
 
 ## What currently works
 
@@ -11,7 +11,7 @@ An offline-first, single-user CRM for Linux, built as one Go application with SQ
 - Multi-brand contact relationships and manually recorded contact permission; suppression checked again on campaign recipient CSV export.
 - Lead conversion to an opportunity, opportunity stage history and optional offer line items.
 - Manual campaign audience snapshot, A/B copy variants and recipient outcome logging.
-- My Day dashboard, task Kanban, notes and next-task logging, basic pipeline reporting.
+- My Day dashboard with a 14-day cooling detector for quiet, unassigned follow-ups, task Kanban, notes and next-task logging, basic pipeline reporting.
 - Bounded attachments served as forced downloads; portable full-data archive including attachment bytes.
 - Loopback browser access with per-run private bootstrap, HttpOnly session cookie, CSRF and Origin protections.
 
