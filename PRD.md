@@ -1,10 +1,10 @@
 # Garage CRM — Product Requirements Document
 
-**Design version:** 0.4.2  
+**Design version:** 0.4.3  
 **Target build:** Version 1 (single-user, offline Linux)  
 **Status:** Locked version 1 design baseline; development implementation underway (acceptance not complete)  
 **Date:** 16 November 2026  
-**Companion:** `EDD.md` (locked design v0.4.2)  
+**Companion:** `EDD.md` (design v0.4.3)  
 **Evidence (non-normative):** `Garage_CRM_Final_Garage_Constraints_Review_v0.4.1.md` (final gate), `Garage_CRM_Research_and_Assurance_v0.4.1.md` (startup benchmark)
 
 ## 1. Mission and non-negotiable outcomes
@@ -140,3 +140,12 @@ User accounts and permissions; team assignment; remote hosting; sync; external e
 ## 14. Product-release decision
 
 v1 product scope is complete only when all numbered acceptance criteria are implemented and executed with reproducible evidence. Requirements are approved by design review; **runtime compliance cannot be claimed before a build exists**. Do not silently reclassify missing functionality as v2 to simplify implementation.
+
+## Amendment v0.4.3 — My Day cooling detector
+
+- The existing stale-opportunity and stalled-relationship requirements are made explicit as a 14-day read-only **Cooling — no next action** dashboard alert for live opportunities and brand-linked prospects with no open next task.
+- Qualifying deal touch: later of opportunity update and latest linked activity. Qualifying prospect touch: later of contact creation and latest contact activity in the corresponding brand.
+- Suppress deal alerts for closed/archived opportunities, and contact alerts for archived contacts and completed/non-prospect lifecycles; a live deal takes precedence over its primary contact in the same brand.
+- Suppress alerts while a matching non-completed, non-archived task exists; completed or archived tasks must not suppress. Honours All Brands and selected-brand filter, uses direct record links and displays days quiet.
+- Beta threshold fixed at 14 days. Configuration remains an outstanding wider v1 requirement.
+- Acceptance includes cross-brand activity isolation, record exclusion, task-state transitions, activity recency, HTML escaping, bounded results and visible count. No new persistence, background scheduler or outbound connection.
