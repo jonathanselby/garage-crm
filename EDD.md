@@ -2,10 +2,10 @@
 
 **Design version:** 0.4.2  
 **Target build:** Version 1, single-user/offline Linux  
-**Status:** Final functional/security clarification — lock candidate; **not** implementation-verified  
+**Status:** Locked version 1 engineering baseline; **not** fully implementation-verified  
 **Date:** 16 November 2026  
-**Companion PRD:** `Garage_CRM_PRD_v0.4.2.md`  
-**Build publication method:** `Garage_GitHub_Publication_Learnings(8).md`
+**Companion PRD:** `PRD.md` (locked design v0.4.2)  
+**Build publication method:** `docs/Garage-Publication-Method.md` (provided as Learnings 9)
 
 ## 1. Mission, constraints and engineering doctrine
 
