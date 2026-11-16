@@ -1,0 +1,57 @@
+name: Garage CRM CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  linux-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: SQLite development headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Modules, formatting, vet
+        run: |
+          cp go.mod /tmp/garage-crm-go.mod
+          go mod tidy
+          diff -u /tmp/garage-crm-go.mod go.mod
+          test -z "$(gofmt -l ./cmd ./internal)"
+          go vet ./...
+      - name: Unit, integration and race tests
+        run: go test -race -count=1 ./...
+      - name: Linux AMD64 build
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags='-s -w' -o dist/garage-crm-linux-amd64 ./cmd/garage-crm
+          ./dist/garage-crm-linux-amd64 version
+          ldd ./dist/garage-crm-linux-amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: garage-crm-amd64-dev
+          path: dist/garage-crm-linux-amd64
+  linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: SQLite development headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Native ARM64 tests and build
+        run: |
+          go vet ./...
+          go test -race ./...
+          mkdir -p dist
+          go build -trimpath -ldflags='-s -w' -o dist/garage-crm-linux-arm64 ./cmd/garage-crm
+          ./dist/garage-crm-linux-arm64 version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: garage-crm-arm64-dev
+          path: dist/garage-crm-linux-arm64
