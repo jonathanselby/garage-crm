@@ -1,0 +1,25 @@
+Garage CRM — Version 1 architecture (design baseline v0.4.2)
+
+ONE LINUX USER / LOCAL BROWSER
+            |
+            | 127.0.0.1 only; protected cookie, Origin/CSRF
+            v
++-------------------------------------------------------+
+| SINGLE Go APPLICATION                                 |
+| PRESENTATION: server-rendered HTML, CSS/SVG, forms    |
+| DOMAIN: deterministic CRM rules and transaction flow |
+| DATA: prepared SQLite, bounded attachments, export   |
++-------------------------------------------------------+
+            |
+            v
+ SQLITE WAL (ONE authoritative state store)
+ data, change history, campaign snapshots, attachments
+            |
+            +--> manually initiated private ZIP export
+            +--> SQLite backup and fresh restore/import
+
+No IAM, cloud, queue, external model, broker, framework,
+CDN, separate frontend build, or integration adapters.
+
+Current build status: development preview 0.1.0-dev.
+See docs/BUILD-STATUS.md for implementation and gap evidence.
