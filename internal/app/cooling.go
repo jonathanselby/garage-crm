@@ -26,7 +26,7 @@ FROM (
         COALESCE(p.name,'') detail,
         CAST(julianday('now')-MAX(julianday(o.updated_at),
           COALESCE((SELECT MAX(julianday(a.occurred_at)) FROM activities a
-                    WHERE a.opportunity_id=o.id),julianday(o.created_at)))
+                    WHERE a.opportunity_id=o.id),julianday(o.updated_at)))
             AS INTEGER) days_since
  FROM opportunities o
  JOIN brands b ON b.id=o.brand_id AND b.archived=0
