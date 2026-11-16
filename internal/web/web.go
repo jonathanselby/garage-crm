@@ -49,7 +49,7 @@ type View struct {
 	Rows                                                                             []sqlite.Row
 	Record                                                                           sqlite.Row
 	Fields                                                                           []FieldView
-	Tasks, Leads, Stages, History, Lines, Members, Relations, Affiliations, Variants []sqlite.Row
+	Tasks, Leads, Stages, History, Lines, Members, Relations, Affiliations, Variants, Cooling []sqlite.Row
 	Board                                                                            map[string][]sqlite.Row
 	BoardStates                                                                      []string
 	ID                                                                               string
@@ -266,6 +266,19 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	v.Stats, _ = s.Service.Dashboard(b)
 	v.Tasks, _ = s.Service.MyDay(b)
 	v.Leads, _ = s.Service.LeadsToFollowUp(b)
+	var coolingErr error
+	v.Cooling, coolingErr = s.Service.CoolingItems(b)
+	if coolingErr != nil {
+		log.Printf("cooling query: %v", coolingErr)
+		http.Error(w, "Dashboard unavailable", http.StatusInternalServerError)
+		return
+	}
+	if v.Stats != nil {
+		v.Stats["cooling"] = 0
+		if len(v.Cooling) != 0 {
+			v.Stats["cooling"] = v.Cooling[0]["total_count"].(int64)
+		}
+	}
 	s.render(w, v)
 }
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
