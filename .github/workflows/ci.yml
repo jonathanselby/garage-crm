@@ -30,10 +30,44 @@ jobs:
           go build -trimpath -ldflags='-s -w' -o dist/garage-crm-linux-amd64 ./cmd/garage-crm
           ./dist/garage-crm-linux-amd64 version
           ldd ./dist/garage-crm-linux-amd64
+      - name: Build Ubuntu desktop installer
+        run: |
+          set -euo pipefail
+          pkg=dist/deb-root
+          install -d "$pkg/DEBIAN" "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/icons/hicolor/scalable/apps"
+          install -m 755 dist/garage-crm-linux-amd64 "$pkg/usr/bin/garage-crm"
+          install -m 644 internal/web/static/mark.svg "$pkg/usr/share/icons/hicolor/scalable/apps/garage-crm.svg"
+          cat > "$pkg/DEBIAN/control" <<'EOF'
+          Package: garage-crm
+          Version: 0.1.1~dev
+          Section: office
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Jonno's Garage <noreply@github.com>
+          Depends: libc6, libsqlite3-0
+          Description: Garage CRM offline desktop application
+           Local-only CRM with SQLite persistence and browser user interface.
+          EOF
+          cat > "$pkg/usr/share/applications/garage-crm.desktop" <<'EOF'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Garage CRM
+          Comment=Offline CRM, local browser UI
+          Exec=/usr/bin/garage-crm serve
+          Icon=garage-crm
+          Terminal=false
+          Categories=Office;
+          StartupNotify=false
+          EOF
+          dpkg-deb --build --root-owner-group "$pkg" dist/garage-crm_0.1.1~dev_amd64.deb
+          dpkg-deb --info dist/garage-crm_0.1.1~dev_amd64.deb
       - uses: actions/upload-artifact@v4
         with:
           name: garage-crm-amd64-dev
-          path: dist/garage-crm-linux-amd64
+          path: |
+            dist/garage-crm-linux-amd64
+            dist/garage-crm_0.1.1~dev_amd64.deb
   linux-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
