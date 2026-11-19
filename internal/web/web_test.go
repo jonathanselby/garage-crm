@@ -141,3 +141,62 @@ func TestReferrerPolicyKeepsSameOriginPostsWorking(t *testing.T) {
 		t.Fatalf("cross-origin request accepted: status %d", w.Code)
 	}
 }
+
+func TestSaveWithOpaqueOrMissingOrigin(t *testing.T) {
+	s := serverTest(t)
+	for _, origin := range []string{"null", ""} {
+		w := req(t, s, "POST", "/save", url.Values{"_csrf": {s.CSRF}, "type": {"people"}, "name": {"Opaque " + origin}}, true, origin)
+		if w.Code != http.StatusSeeOther {
+			t.Fatalf("valid local save with origin %q: status %d: %s", origin, w.Code, w.Body.String())
+		}
+	}
+	for _, origin := range []string{"null", ""} {
+		w := req(t, s, "POST", "/save", url.Values{"type": {"people"}, "name": {"No CSRF"}}, true, origin)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("missing CSRF with origin %q: %d", origin, w.Code)
+		}
+	}
+}
+
+func TestOriginMetadataAndQuit(t *testing.T) {
+	s := serverTest(t)
+	var quitCalls int
+	s.Quit = func() { quitCalls++ }
+	values := url.Values{"_csrf": {s.CSRF}}
+	w := req(t, s, "GET", "/", nil, true, "")
+	if !strings.Contains(w.Body.String(), "Quit Garage CRM") {
+		t.Fatal("Quit button missing from page")
+	}
+	for _, path := range []string{"/save", "/quit"} {
+		for _, origin := range []string{"null", ""} {
+			for _, site := range []string{"cross-site", "same-site"} {
+				r := httptest.NewRequest("POST", "http://127.0.0.1:43812"+path, strings.NewReader(values.Encode()))
+				r.RemoteAddr = "127.0.0.1:49002"
+				r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				r.Header.Set("Origin", origin)
+				r.Header.Set("Sec-Fetch-Site", site)
+				r.AddCookie(&http.Cookie{Name: "garage_session", Value: s.Session})
+				w := httptest.NewRecorder()
+				s.ServeHTTP(w, r)
+				if w.Code != http.StatusForbidden {
+					t.Fatalf("%s with %q and %q: %d", path, origin, site, w.Code)
+				}
+			}
+		}
+	}
+	if quitCalls != 0 {
+		t.Fatal("cross-site requests triggered quit")
+	}
+	w = req(t, s, "POST", "/quit", url.Values{}, true, "null")
+	if w.Code != http.StatusForbidden || quitCalls != 0 {
+		t.Fatalf("unauthorised quit: %d calls %d", w.Code, quitCalls)
+	}
+	w = req(t, s, "GET", "/quit", nil, true, "")
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET quit unexpectedly allowed: %d", w.Code)
+	}
+	w = req(t, s, "POST", "/quit", values, true, "null")
+	if w.Code != http.StatusOK || quitCalls != 1 || !strings.Contains(w.Body.String(), "has closed") {
+		t.Fatalf("valid quit: status %d, calls %d, body %s", w.Code, quitCalls, w.Body.String())
+	}
+}
