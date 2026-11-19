@@ -133,8 +133,8 @@ func TestReferrerPolicyKeepsSameOriginPostsWorking(t *testing.T) {
 		t.Fatalf("valid same-origin save: status %d, body %s", w.Code, w.Body.String())
 	}
 	w = req(t, s, "POST", "/save", values, true, "null")
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("opaque origin accepted: status %d", w.Code)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("valid CSRF-protected opaque origin refused: status %d", w.Code)
 	}
 	w = req(t, s, "POST", "/save", values, true, "https://evil.invalid")
 	if w.Code != http.StatusForbidden {
