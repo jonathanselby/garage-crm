@@ -106,6 +106,7 @@ func (s *Server) BootstrapFile(dir string) (string, error) {
 	}
 	return f.Name(), f.Sync()
 }
+
 // sameOriginPost rejects explicit cross-site evidence, while accepting
 // absent/opaque Origin values that browsers may send on legitimate local
 // form submissions. Every POST still requires a valid session and an
@@ -267,6 +268,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
 }
+
 // quit requests a graceful server shutdown after replying to the browser.
 func (s *Server) quit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
