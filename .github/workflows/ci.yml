@@ -20,8 +20,8 @@ jobs:
           cp go.mod /tmp/garage-crm-go.mod
           go mod tidy
           diff -u /tmp/garage-crm-go.mod go.mod
-          gofmt -w ./cmd ./internal
-          git diff --exit-code -- ./cmd ./internal
+          gofmt -l ./cmd ./internal | tee /tmp/garage-crm-gofmt.txt
+          test ! -s /tmp/garage-crm-gofmt.txt
           go vet ./...
       - name: Unit, integration and race tests
         run: go test -race -count=1 ./...
