@@ -1,33 +1,35 @@
 # Garage CRM — Code-derived engineering evidence
 
-**Evidence status:** Development build, not release acceptance  
-**Authoritative source-changing GitHub commit:** `99da8cc802de11beea90e955c07b0422cbdf2220`  
-**Target design:** locked `PRD.md` / `EDD.md` version 0.4.2  
-**Build identifier:** `0.1.0-dev`
+**Evidence status:** Tested development build, not full Version 1 acceptance
+**Authoritative final source-changing commit:** `b5c1b3cb00a8d6d64704ff272c0421f8da5edf46`
+**Source tree SHA:** `c084fbc41a52b9f16ee477d7aff89f851a75db79`
+**Design baseline:** locked `PRD.md` / `EDD.md` version **0.4.4**
+**Development build:** `0.1.3-dev`
+**CI verification:** [run 44451947256](https://github.com/jonathanselby/garage-crm/actions/runs/44451947256) — Linux AMD64 and ARM64 completed successfully for the source-changing commit above.
 
-This document describes what the cited source actually implements. It is not a substitute for the normative v0.4.2 EDD and does not assert that all its acceptance cases have been completed.
+## Deployed execution shape (source inspection)
 
-## Runtime
+- `cmd/garage-crm/main.go`: one local Go process; serve, backup, export, import-to-empty, inspect and version commands. It acquires an exclusive data-directory process lock, binds `127.0.0.1`, launches a private starter page where possible, and owns the HTTP listener and SQLite database lifetimes.
+- `internal/web/web.go`, `internal/web/template.go`, `internal/web/static/`: Go server-rendered HTML and CSS/SVG, no SPA/runtime frontend dependency. Per-run one-use private bootstrap issues an HttpOnly SameSite session cookie; all normal POST operations require a valid session, a per-run CSRF secret and provenance validation. Explicit hostile Origin, contradictory Referer and cross-site Fetch Metadata are refused. The browser can omit Origin or send `null`; this case is gated by session and CSRF rather than Origin alone.
+- Quit is a browser-visible form in the sidebar posting `/quit` with the current CSRF token. The handler returns a closed page and signals the owner. `http.Server.Shutdown` is bounded and `serve` waits for shutdown completion before its deferred SQLite close and process-lock release.
+- `internal/app/`: domain services for contacts, organisations, brands, products, leads, opportunities, campaigns, tasks, permissions, cooling and history. Business rules and transactions are outside HTML presentation.
+- `internal/sqlite/sqlite.go`: one authoritative system SQLite store, cgo library, prepared statements, transactions, WAL and owner-only data directory; no external database or network API.
+- `internal/portable/archive.go`: portable ZIP export/inspect and import to a new empty data directory; not an in-place atomic restore engine.
 
-- `cmd/garage-crm/main.go`: Go CLI with serve, backup, export, inspect and clean-target import. Default data root `$XDG_DATA_HOME/garage-crm` or `~/.local/share/garage-crm`. OS file lock prevents simultaneous processes on a single data directory. HTTP TCP4 bound to `127.0.0.1` only. Desktop opening via optional system `xdg-open`.
-- `internal/sqlite/sqlite.go`: direct system libsqlite3 through cgo, SQLite prepared SQL, transactions, explicit locking, foreign keys, WAL, `synchronous=FULL`, secure deletion setting, online SQLite backup. No ORM, server/database pool, broker, external API or Node runtime.
-- `internal/app/schema.go`: 34 schema tables (33 business tables in the portable archive, with migration metadata represented by the manifest) with FK links, revision/audit history, brand-specific relationship data, opportunity stage events and stored attachment BLOBs. Single database is the authoritative source.
-- `internal/app/model.go` and `internal/app/workflows.go`: typed entity CRUD, brand validations, optimistic revisions, lead conversion, stage changes, activities with follow-ups, opportunity lines, campaign recipient snapshot, manual outcomes and recipient opt-out re-checking, basic reporting and task recurrence.
-- `internal/app/relationships.go`: brand-specific contacts, contact merge with restriction-preserving permissions, aliases, multiple contact channels and organisation affiliations, offer relationships and permanent-contact PII redaction.
-- `internal/portable/archive.go`: versioned `garage-crm-export/1` ZIP with manifest, all stored entities, checksums and bytes of SQLite attachment BLOBs, and import to a new empty database with FK checks and safe failure. Not an in-place overwrite/restore engine.
-- `internal/web/web.go`, `internal/web/people.go`, `internal/web/template.go` and `internal/web/static`: server-rendered forms with embedded CSS/SVG, localhost Host check, per-run bootstrap token in owner-only local starter file, HttpOnly SameSite cookie, Origin/CSRF validation, escaped HTML, download attachment headers and bounded uploads. There is no JavaScript build or CDN.
+## Distribution and version ownership
 
-## Security trust boundary
+The one authoritative application build string is `VERSION` = `0.1.3-dev`. GitHub CI injects it through `-ldflags -X main.version` in both native builds. The web template receives the same running-binary value through the view, and the package derives Debian version `0.1.3~dev` from the file. The application installs to `/usr/bin/garage-crm`; desktop entry at `/usr/share/applications/garage-crm.desktop`; icon under `/usr/share/icons/`. Writable data remains under `$XDG_DATA_HOME/garage-crm`, otherwise `~/.local/share/garage-crm`. No customer database is shipped in the package.
 
-- Browser traffic on loopback; OS owner-only data directory, SQLite and private starter file; short-lived one-use bootstrap token, CSRF defence, restrictive CSP, no remote fonts/assets. Session is local access protection, not IAM.
-- SQL values bound; table and column names fixed to allow-listed schema code; `html/template` escapes CRM content; untrusted attachments downloaded as `application/octet-stream` with no sniffing and attachment disposition.
-- Campaign recipient lists check current brand consent, brand opt-out and global DNC at download time; historical snapshots persist. Personal deletion redacts tested data across linked histories and excludes it from subsequent archives. Prior backups and SSD blocks cannot be erased by this tool.
-- At-rest archive/database encryption is **not** provided. Same-user malware and compromised OS remain outside the product trust boundary.
+## Tests actually executed
 
-## Verified tests and limitations
+GitHub Actions CI for commit `b5c1b3cb00a8d6d64704ff272c0421f8da5edf46` completed the following:
+- AMD64: `go mod tidy` with module-file comparison; Go formatting check; `go vet ./...`; `go test -race -count=1 ./...`; native Linux AMD64 binary build and version check; Ubuntu `.deb` construction and `dpkg-deb --info` check.
+- ARM64: `go vet ./...`; `go test -race ./...`; native Linux ARM64 binary build and version check.
+- New `cmd/garage-crm/main_test.go`: starts a real loopback HTTP listener with disposable data; reads the owner-only bootstrap file; acquires the session cookie; obtains the real CSRF token; confirms a missing token is refused; saves a record with `Origin: null`; submits protected Quit; waits for server termination; reopens SQLite and confirms the record persisted.
+- `internal/web/web_test.go`: same-origin forms, opaque/missing origin, missing CSRF, foreign Origin, hostile Referer/Fetch Metadata, unauthenticated and unauthorised Quit, and replay/Host controls. Other existing app, portable archive, cooling and XSS tests remain part of the full test suite.
 
-Automated test source: `internal/app/app_test.go`, `internal/web/web_test.go`. Tests cover representative multi-brand and campaign opt-out, lead conversion idempotence, concurrent revision rejection, stage history, full archive with binary attachment and corrupted-input rejection, restrictive merge semantics, personal redaction roundtrip, unauthenticated GET and wrong token, bootstrap replay, cross-origin/CSRF, XSS escaping, and browser asset security headers.
+**Limits of evidence:** CI is not a complete desktop/browser UAT and not a proof that all PRD requirements are present. Native Ubuntu package upgrade, real end-user Chrome/Chromium save/quit flow, visual accessibility, high-volume load/latency, data restoration under failure, complete security assurance and all other `docs/BUILD-STATUS.md` release blockers remain outstanding. The application is not a security-certified or complete v1 product.
 
-Executed locally: `go mod tidy`, gofmt, `go vet ./...`, `go test -race ./...`, Linux AMD64 native build and CLI startup. GitHub CI run `43852206135` passed native AMD64 and ARM64 jobs for source commit above. The local binary dynamically links system `libsqlite3.so.0` and glibc. Ubuntu UI/visual acceptance was not demonstrated because the test browser environment blocks localhost navigation.
+## Final-source pinning policy
 
-**Release-blocking unknowns:** full PRD feature coverage including custom fields UI, richer saved views/filters, pipeline configurability, advanced campaign attribution and workflow UX, CSV imports, in-place generation-safe restore, migration stress/performance budgets, complete accessibility, comprehensive real-client security negative tests, dependency vulnerability scan and signed stable desktop distribution. See `docs/BUILD-STATUS.md` and `generated/COMPARISON.md`.
+This evidence is documentation-only and refers to the final source-changing commit above. The evidence commit does **not** modify the source, VERSION, tests, or CI. The historical `v0.0.1` release remains immutable. Earlier micro-commits survive only on the explicitly named archived recovery branch.
