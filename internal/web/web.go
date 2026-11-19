@@ -65,6 +65,7 @@ type Server struct {
 	Service                  *app.Service
 	Addr                     string
 	Session, CSRF, Bootstrap string
+	Quit                     func()
 	tpl                      *template.Template
 	bootstrapMu              sync.Mutex
 	bootstrapExpires         time.Time
@@ -105,6 +106,27 @@ func (s *Server) BootstrapFile(dir string) (string, error) {
 	}
 	return f.Name(), f.Sync()
 }
+// sameOriginPost rejects explicit cross-site evidence, while accepting
+// absent/opaque Origin values that browsers may send on legitimate local
+// form submissions. Every POST still requires a valid session and an
+// independent, unpredictable CSRF token.
+func (s *Server) sameOriginPost(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin != "" && origin != "null" && origin != "http://"+s.Addr {
+		return false
+	}
+	if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" && site != "none" {
+		return false
+	}
+	if ref := r.Header.Get("Referer"); ref != "" {
+		u, err := url.Parse(ref)
+		if err != nil || u.Scheme != "http" || u.Host != s.Addr || u.User != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	// Preserve the same-origin referrer on local form submissions.
@@ -174,7 +196,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
-		if r.Header.Get("Origin") != "http://"+s.Addr {
+		if !s.sameOriginPost(r) {
 			http.Error(w, "cross-origin request refused", 403)
 			return
 		}
@@ -199,6 +221,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.record(w, r)
 	case "/save":
 		s.save(w, r)
+	case "/quit":
+		s.quit(w, r)
 	case "/status":
 		s.status(w, r)
 	case "/archive":
@@ -243,6 +267,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
 }
+// quit requests a graceful server shutdown after replying to the browser.
+func (s *Server) quit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.Quit == nil {
+		http.Error(w, "shutdown is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, "<!doctype html><html lang=\"en-AU\"><head><meta charset=\"utf-8\"><title>Garage CRM closed</title></head><body><main><h1>Garage CRM has closed</h1><p>Your saved data is preserved. You can close this browser tab.</p></main></body></html>")
+	s.Quit()
+}
+
 func (s *Server) base(mode, title, rpath, brand string) View {
 	brands, _ := s.Service.Brands()
 	opts := []Option{{"", "All brands"}}
