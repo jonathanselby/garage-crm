@@ -39,7 +39,7 @@ jobs:
           install -m 644 internal/web/static/mark.svg "$pkg/usr/share/icons/hicolor/scalable/apps/garage-crm.svg"
           cat > "$pkg/DEBIAN/control" <<'EOF'
           Package: garage-crm
-          Version: 0.1.1~dev
+          Version: 0.1.2~dev
           Section: office
           Priority: optional
           Architecture: amd64
@@ -60,14 +60,14 @@ jobs:
           Categories=Office;
           StartupNotify=false
           EOF
-          dpkg-deb --build --root-owner-group "$pkg" dist/garage-crm_0.1.1~dev_amd64.deb
-          dpkg-deb --info dist/garage-crm_0.1.1~dev_amd64.deb
+          dpkg-deb --build --root-owner-group "$pkg" dist/garage-crm_0.1.2~dev_amd64.deb
+          dpkg-deb --info dist/garage-crm_0.1.2~dev_amd64.deb
       - uses: actions/upload-artifact@v4
         with:
           name: garage-crm-amd64-dev
           path: |
             dist/garage-crm-linux-amd64
-            dist/garage-crm_0.1.1~dev_amd64.deb
+            dist/garage-crm_0.1.2~dev_amd64.deb
   linux-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
