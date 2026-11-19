@@ -118,3 +118,26 @@ func TestHostAndAttachmentHeaders(t *testing.T) {
 		t.Fatal("missing strict CSP")
 	}
 }
+
+// Regression: browser form posts must retain their same-origin context while
+// opaque and cross-site origins remain forbidden.
+func TestReferrerPolicyKeepsSameOriginPostsWorking(t *testing.T) {
+	s := serverTest(t)
+	w := req(t, s, "GET", "/", nil, true, "")
+	if got := w.Header().Get("Referrer-Policy"); got != "same-origin" {
+		t.Fatalf("referrer policy = %q; want same-origin", got)
+	}
+	values := url.Values{"type": {"people"}, "name": {"Mara"}, "_csrf": {s.CSRF}}
+	w = req(t, s, "POST", "/save", values, true, "http://127.0.0.1:43812")
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("valid same-origin save: status %d, body %s", w.Code, w.Body.String())
+	}
+	w = req(t, s, "POST", "/save", values, true, "null")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("opaque origin accepted: status %d", w.Code)
+	}
+	w = req(t, s, "POST", "/save", values, true, "https://evil.invalid")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin request accepted: status %d", w.Code)
+	}
+}
