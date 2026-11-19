@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-const version = "0.1.1-dev"
+const version = "0.1.2-dev"
 
 func rootDir() string {
 	if p := os.Getenv("XDG_DATA_HOME"); p != "" {
