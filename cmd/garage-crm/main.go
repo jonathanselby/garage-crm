@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"sync"
 	"time"
 )
 
@@ -174,6 +176,9 @@ func serve(root string, port int, noBrowser bool) error {
 	defer listener.Close()
 	addr := listener.Addr().String()
 	server := web.New(&app.Service{DB: db}, addr)
+	quitRequested := make(chan struct{})
+	var quitOnce sync.Once
+	server.Quit = func() { quitOnce.Do(func() { close(quitRequested) }) }
 	bootstrapFile, err := server.BootstrapFile(root)
 	if err != nil {
 		return err
@@ -184,7 +189,21 @@ func serve(root string, port int, noBrowser bool) error {
 	signal.Notify(signalCtx, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(signalCtx)
 	stopped := make(chan struct{})
-	go func() { <-signalCtx; httpServer.Close(); close(stopped) }()
+	go func() {
+		select {
+		case <-signalCtx:
+		case <-quitRequested:
+		}
+		// Give the Quit response time to reach the browser, then allow
+		// in-flight requests to complete and close the local listener.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Printf("graceful shutdown: %v", err)
+			_ = httpServer.Close()
+		}
+		close(stopped)
+	}()
 	fmt.Println("Garage CRM", version, "— local only / offline")
 	fmt.Println("Local address:", "http://"+addr)
 	fmt.Println("Private browser starter:", bootstrapFile)
