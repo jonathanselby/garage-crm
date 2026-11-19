@@ -1,7 +1,7 @@
 name: Garage CRM CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'candidate/**']
   pull_request:
   workflow_dispatch:
 jobs:
@@ -20,20 +20,57 @@ jobs:
           cp go.mod /tmp/garage-crm-go.mod
           go mod tidy
           diff -u /tmp/garage-crm-go.mod go.mod
-          test -z "$(gofmt -l ./cmd ./internal)"
+          gofmt -l ./cmd ./internal | tee /tmp/garage-crm-gofmt.txt
+          test ! -s /tmp/garage-crm-gofmt.txt
           go vet ./...
       - name: Unit, integration and race tests
         run: go test -race -count=1 ./...
       - name: Linux AMD64 build
         run: |
           mkdir -p dist
-          go build -trimpath -ldflags='-s -w' -o dist/garage-crm-linux-amd64 ./cmd/garage-crm
-          ./dist/garage-crm-linux-amd64 version
+          go build -trimpath -ldflags="-s -w -X main.version=$(cat VERSION)" -o dist/garage-crm-linux-amd64 ./cmd/garage-crm
+          test "$(./dist/garage-crm-linux-amd64 version)" = "garage-crm $(cat VERSION)"
           ldd ./dist/garage-crm-linux-amd64
+      - name: Build Ubuntu desktop installer
+        run: |
+          set -euo pipefail
+          app_version=$(cat VERSION)
+          deb_version=${app_version/-dev/~dev}
+          pkg=dist/deb-root
+          install -d "$pkg/DEBIAN" "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/icons/hicolor/scalable/apps"
+          install -m 755 dist/garage-crm-linux-amd64 "$pkg/usr/bin/garage-crm"
+          install -m 644 internal/web/static/mark.svg "$pkg/usr/share/icons/hicolor/scalable/apps/garage-crm.svg"
+          cat > "$pkg/DEBIAN/control" <<EOF
+          Package: garage-crm
+          Version: $deb_version
+          Section: office
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Jonno's Garage <noreply@github.com>
+          Depends: libc6, libsqlite3-0
+          Description: Garage CRM offline desktop application
+           Local-only CRM with SQLite persistence and browser user interface.
+          EOF
+          cat > "$pkg/usr/share/applications/garage-crm.desktop" <<'EOF'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Garage CRM
+          Comment=Offline CRM, local browser UI
+          Exec=/usr/bin/garage-crm serve
+          Icon=garage-crm
+          Terminal=false
+          Categories=Office;
+          StartupNotify=false
+          EOF
+          dpkg-deb --build --root-owner-group "$pkg" "dist/garage-crm_${deb_version}_amd64.deb"
+          dpkg-deb --info "dist/garage-crm_${deb_version}_amd64.deb"
       - uses: actions/upload-artifact@v4
         with:
           name: garage-crm-amd64-dev
-          path: dist/garage-crm-linux-amd64
+          path: |
+            dist/garage-crm-linux-amd64
+            dist/*.deb
   linux-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
@@ -49,8 +86,8 @@ jobs:
           go vet ./...
           go test -race ./...
           mkdir -p dist
-          go build -trimpath -ldflags='-s -w' -o dist/garage-crm-linux-arm64 ./cmd/garage-crm
-          ./dist/garage-crm-linux-arm64 version
+          go build -trimpath -ldflags="-s -w -X main.version=$(cat VERSION)" -o dist/garage-crm-linux-arm64 ./cmd/garage-crm
+          test "$(./dist/garage-crm-linux-arm64 version)" = "garage-crm $(cat VERSION)"
       - uses: actions/upload-artifact@v4
         with:
           name: garage-crm-arm64-dev

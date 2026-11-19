@@ -1,10 +1,10 @@
 # Garage CRM — Product Requirements Document
 
-**Design version:** 0.4.3  
+**Design version:** 0.4.4  
 **Target build:** Version 1 (single-user, offline Linux)  
 **Status:** Locked version 1 design baseline; development implementation underway (acceptance not complete)  
 **Date:** 16 November 2026  
-**Companion:** `EDD.md` (design v0.4.3)  
+**Companion:** `EDD.md` (design v0.4.4)  
 **Evidence (non-normative):** `Garage_CRM_Final_Garage_Constraints_Review_v0.4.1.md` (final gate), `Garage_CRM_Research_and_Assurance_v0.4.1.md` (startup benchmark)
 
 ## 1. Mission and non-negotiable outcomes
@@ -149,3 +149,13 @@ v1 product scope is complete only when all numbered acceptance criteria are impl
 - Suppress alerts while a matching non-completed, non-archived task exists; completed or archived tasks must not suppress. Honours All Brands and selected-brand filter, uses direct record links and displays days quiet.
 - Beta threshold fixed at 14 days. Configuration remains an outstanding wider v1 requirement.
 - Acceptance includes cross-brand activity isolation, record exclusion, task-state transitions, activity recency, HTML escaping, bounded results and visible count. No new persistence, background scheduler or outbound connection.
+
+## Amendment v0.4.4 — Save reliability, controlled exit and durable upgrades (19 November 2026)
+
+This is a controlled additive amendment to the locked v0.4.3 Version 1 requirements. All existing requirements and acceptance gates remain in force.
+
+- **Save reliability:** A legitimately authenticated local browser form submission must persist and be visible after navigation, Quit, and reopening. An opaque or missing browser Origin is not sufficient reason to reject a valid request when the same user has the private session cookie and unpredictable per-run CSRF token; reject contradictory cross-site Origin, Referer and Fetch Metadata signals. No arbitrary cross-origin trust and no permissive CORS.
+- **Quit application:** A visible and keyboard-accessible Quit Garage CRM control must request a graceful termination of the local HTTP listener, allow in-flight operations to finish, close SQLite safely, release the process lock and show a useful browser confirmation. Closing a browser tab alone must not terminate the application. No unauthorised POST or GET may shut the service down.
+- **Persistent desktop deployment:** Installing or upgrading the Ubuntu package must not use the Downloads directory as an application or data root. The executable and launcher use standard OS paths; data stays in the XDG Garage CRM directory unless explicitly configured otherwise. Upgrades must not overwrite existing data.
+- **Acceptance S01:** Exercise the actual HTTP bootstrap, session, form save, missing-CSRF rejection, Quit and database reopen on a real loopback listener using a disposable database. Exercise explicit cross-site and contradictory header cases. Native Ubuntu browser/UAT and upgrade verification are separate final gates; automated tests alone cannot claim that UAT has passed.
+- **Version clarity:** Design version (0.4.4), development build version (0.1.3-dev), Debian package version (0.1.3~dev) and prerelease tag have distinct purposes. The single source of application build version is `VERSION`, passed to the compiled binary and used for packaging; do not claim full Version 1 acceptance.

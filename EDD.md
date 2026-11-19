@@ -1,10 +1,10 @@
 # Garage CRM — Engineering Design Document
 
-**Design version:** 0.4.3  
+**Design version:** 0.4.4  
 **Target build:** Version 1, single-user/offline Linux  
 **Status:** Locked version 1 engineering baseline; **not** fully implementation-verified  
 **Date:** 16 November 2026  
-**Companion PRD:** `PRD.md` (design v0.4.3)  
+**Companion PRD:** `PRD.md` (design v0.4.4)  
 **Build publication method:** `docs/Garage-Publication-Method.md` (provided as Learnings 9)
 
 ## 1. Mission, constraints and engineering doctrine
@@ -24,9 +24,10 @@ Ubuntu OS user / local browser
          v
 One Go executable
   cmd/garage-crm        startup/shutdown, launcher
-  internal/httpui       server-rendered HTML, forms, CSRF, embedded CSS/SVG/JS
-  internal/domain       lead conversion, contact merge, campaigns, offers, tasks, rules
-  internal/store        prepared SQL, transactions, migrations, import/export/backup
+  internal/web          server-rendered HTML, forms, CSRF, embedded CSS/SVG
+  internal/app          lead conversion, contact merge, campaigns, offers, tasks
+  internal/sqlite       prepared SQL, transactions, migrations, backup
+  internal/portable     ZIP archive inspection, export, clean-target import
          |
          v
 SQLite WAL database, including a separate attachment BLOB table
@@ -104,7 +105,7 @@ All writes use transaction timeouts and present a clear user-facing success/fail
 
 ## 6. Security and privacy without v1 IAM
 
-- HTTP listener **only** on `127.0.0.1`; forbid wildcard bind, unexpected Host and cross-origin writes; no CORS. Browser session uses a cryptographically random per-run access bootstrap token exchanged for an HttpOnly, SameSite cookie and immediately redirected to a clean URL, plus CSRF token and strict Origin checks. This protects against other local browser origins and reduces exposure from other OS users; it is **not** identity management and there is no account/password/role UI.
+- HTTP listener **only** on `127.0.0.1`; forbid wildcard bind, unexpected Host and cross-origin writes; no CORS. Browser session uses a cryptographically random per-run access bootstrap token exchanged for an HttpOnly, SameSite cookie and immediately redirected to a clean URL, plus CSRF token, explicit cross-site Origin/Referer/Fetch Metadata rejection and a documented session+CSRF fallback when a local browser omits or obscures its Origin. This protects against other local browser origins and reduces exposure from other OS users; it is **not** identity management and there is no account/password/role UI.
 - Explain remaining trust boundary: processes running as the same OS user can read/write accessible local data. A loopback port alone does **not** restrict access to the launching OS account; bootstrap token mitigates unintended local access, not a fully hostile multi-user host.
 - Parameterised SQL, server-side validations, escaped templates, CSP, X-Content-Type-Options, Referrer-Policy, no reflected HTML from imported notes, bounded HTTP bodies and response types.
 - App-owned files 0700 directory/0600 data; detect and reject unsafe symlinks and path traversal for archive and export destination; serve attachments from validated DB IDs, not filesystem paths; support safe filename handling and never execute imported content.
@@ -191,3 +192,14 @@ Follow the uploaded Garage GitHub Publication Learnings exactly: lock PRD/EDD; a
 - Enforce brand predicates via query parameters, closed/archived exclusions, a 50-row visible limit and an independent full count using a window function; no database migration or new dependency.
 - Surface one stat tile and record-linked panel through existing authenticated HTML templates. Query errors must not silently display a misleading empty state.
 - App-level workflow tests and web-rendering/escaping tests accompany this change. No alteration to unrelated v1 acceptance obligations.
+
+## Amendment v0.4.4 — Verified save and lifecycle design (19 November 2026)
+
+**Purpose.** Resolve the runtime save failure and add an explicit controlled shutdown without changing the minimal monolith or domain ownership.
+
+1. **HTTP provenance and CSRF:** All state-changing methods require the one-use-bootstrap authenticated session and per-run CSRF secret. The explicit hostile Origin, contradictory Referer and Fetch Metadata `cross-site`/`same-site` cases remain forbidden. Because legitimate browser form submissions can omit Origin or send `null`, do not require that header alone to match; an opaque or absent Origin never bypasses the session, CSRF token, Host, loopback, method or form-size checks. No CORS, wildcard listener, additional external service or client-side authority.
+2. **Quit control:** The existing `internal/web` handler exposes `POST /quit` behind normal session, CSRF and provenance checks; GET must be rejected. A callback closes a once-only shutdown notification. The application owner in `cmd/garage-crm` invokes `http.Server.Shutdown` with a bounded timeout, waits for its completion, and only then returns from `serve` to close SQLite and unlock the data directory. Browser receives a closed acknowledgement. No business logic or storage is moved into presentation.
+3. **Data ownership and installation:** `/usr/bin/garage-crm` and `/usr/share/applications/garage-crm.desktop` are application-owned package paths; `$XDG_DATA_HOME/garage-crm` or `~/.local/share/garage-crm/` remains the user's writable and authoritative data path. The `.deb` must not ship or delete `crm.db`.
+4. **Version contract:** `VERSION` is authoritative for the build identifier. CI injects its value using Go `-ldflags`, checks `garage-crm version`, derives Debian `~dev` notation from that value and exposes it to the HTML template from the running binary. Locked PRD/EDD design versions remain a separate 0.4.x series.
+5. **Verification:** Run `go mod tidy` with no module change, `gofmt`, `go vet`, `go test -race`, native AMD64 and ARM64 builds, a real loopback listener/test-data save and shutdown, cross-origin/CSRF negative tests and Debian package metadata checks. Verify the final source-changing commit on the candidate branch before force-with-lease publication; produce code-derived engineering evidence in one later documentation-only commit. Native desktop browser and package-upgrade UAT still require an actual Ubuntu device.
+6. **Acceptance boundaries:** A development build and successful CI do not constitute the full Version 1 release gate. Outstanding v0.4.3 features, volume budgets, restore design and dependency assurance remain open and explicitly tracked. This amendment neither moves them to V2 nor weakens the security model.

@@ -1,6 +1,6 @@
 # Garage CRM — Development build status
 
-**Status:** `0.1.0-dev`, not an accepted Version 1 release. **Locked contract:** PRD/EDD v0.4.3 and the attached Garage GitHub Publication Learnings (9).
+**Status:** `0.1.3-dev`, not an accepted Version 1 release. **Locked contract:** PRD/EDD v0.4.4 and the attached Garage GitHub Publication Learnings (9).
 
 ## Implemented, locally verified
 - Single Go executable; compiled Linux AMD64 with SQLite system library.
@@ -29,3 +29,9 @@ See test results in this repository and GitHub Actions checks. Scripted unit and
 ## Distribution note
 
 The preview dynamically uses `libsqlite3.so.0` and the system's C runtime. The executable is not yet a fully self-contained AppImage. Client data is unencrypted at rest; users should use full-disk encryption and protect portable archives.
+
+## Development correction 19 November 2026 (design v0.4.4)
+
+The old form handler rejected even a valid browser `Origin: null`. The source now allows opaque/missing Origin only behind the authenticated per-run browser session and correct CSRF token, and rejects explicit contradictory cross-origin provenance. Added Quit sidebar action using protected POST and graceful HTTP shutdown. `serve()` now waits for shutdown completion before database closure, addressing an earlier select-default lifetime race.
+
+The real-listener regression test exercises bootstrap, session, form save, missing-token refusal, Quit completion and a SQLite reopen, using disposable test records. The previous v1 release blockers above are unchanged. **Do not report native Ubuntu browser or installed-package UAT complete until the user validates it.** The package is a conventional system-installed `.deb`; the Downloads directory is not the install location.

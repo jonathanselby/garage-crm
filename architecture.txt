@@ -1,4 +1,4 @@
-Garage CRM — Version 1 architecture (design baseline v0.4.2)
+Garage CRM — Version 1 architecture (design baseline v0.4.4)
 
 ONE LINUX USER / LOCAL BROWSER
             |
@@ -21,5 +21,5 @@ ONE LINUX USER / LOCAL BROWSER
 No IAM, cloud, queue, external model, broker, framework,
 CDN, separate frontend build, or integration adapters.
 
-Current build status: development preview 0.1.0-dev.
+Current build status: development preview 0.1.3-dev.
 See docs/BUILD-STATUS.md for implementation and gap evidence.

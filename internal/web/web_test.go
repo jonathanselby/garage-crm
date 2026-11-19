@@ -118,3 +118,115 @@ func TestHostAndAttachmentHeaders(t *testing.T) {
 		t.Fatal("missing strict CSP")
 	}
 }
+
+// Regression: browser form posts must retain their same-origin context while
+// opaque and cross-site origins remain forbidden.
+func TestReferrerPolicyKeepsSameOriginPostsWorking(t *testing.T) {
+	s := serverTest(t)
+	w := req(t, s, "GET", "/", nil, true, "")
+	if got := w.Header().Get("Referrer-Policy"); got != "same-origin" {
+		t.Fatalf("referrer policy = %q; want same-origin", got)
+	}
+	values := url.Values{"type": {"people"}, "name": {"Mara"}, "_csrf": {s.CSRF}}
+	w = req(t, s, "POST", "/save", values, true, "http://127.0.0.1:43812")
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("valid same-origin save: status %d, body %s", w.Code, w.Body.String())
+	}
+	w = req(t, s, "POST", "/save", values, true, "null")
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("valid CSRF-protected opaque origin refused: status %d", w.Code)
+	}
+	w = req(t, s, "POST", "/save", values, true, "https://evil.invalid")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin request accepted: status %d", w.Code)
+	}
+}
+
+func TestSaveWithOpaqueOrMissingOrigin(t *testing.T) {
+	s := serverTest(t)
+	for _, origin := range []string{"null", ""} {
+		w := req(t, s, "POST", "/save", url.Values{"_csrf": {s.CSRF}, "type": {"people"}, "name": {"Opaque " + origin}}, true, origin)
+		if w.Code != http.StatusSeeOther {
+			t.Fatalf("valid local save with origin %q: status %d: %s", origin, w.Code, w.Body.String())
+		}
+	}
+	for _, origin := range []string{"null", ""} {
+		w := req(t, s, "POST", "/save", url.Values{"type": {"people"}, "name": {"No CSRF"}}, true, origin)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("missing CSRF with origin %q: %d", origin, w.Code)
+		}
+	}
+}
+
+func TestOriginMetadataAndQuit(t *testing.T) {
+	s := serverTest(t)
+	var quitCalls int
+	s.Quit = func() { quitCalls++ }
+	values := url.Values{"_csrf": {s.CSRF}}
+	w := req(t, s, "GET", "/", nil, true, "")
+	if !strings.Contains(w.Body.String(), "Quit Garage CRM") {
+		t.Fatal("Quit button missing from page")
+	}
+	for _, path := range []string{"/save", "/quit"} {
+		for _, origin := range []string{"null", ""} {
+			for _, site := range []string{"cross-site", "same-site"} {
+				r := httptest.NewRequest("POST", "http://127.0.0.1:43812"+path, strings.NewReader(values.Encode()))
+				r.RemoteAddr = "127.0.0.1:49002"
+				r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				r.Header.Set("Origin", origin)
+				r.Header.Set("Sec-Fetch-Site", site)
+				r.AddCookie(&http.Cookie{Name: "garage_session", Value: s.Session})
+				w := httptest.NewRecorder()
+				s.ServeHTTP(w, r)
+				if w.Code != http.StatusForbidden {
+					t.Fatalf("%s with %q and %q: %d", path, origin, site, w.Code)
+				}
+			}
+		}
+	}
+	if quitCalls != 0 {
+		t.Fatal("cross-site requests triggered quit")
+	}
+	w = req(t, s, "POST", "/quit", url.Values{}, true, "null")
+	if w.Code != http.StatusForbidden || quitCalls != 0 {
+		t.Fatalf("unauthorised quit: %d calls %d", w.Code, quitCalls)
+	}
+	w = req(t, s, "GET", "/quit", nil, true, "")
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET quit unexpectedly allowed: %d", w.Code)
+	}
+	w = req(t, s, "POST", "/quit", values, true, "null")
+	if w.Code != http.StatusOK || quitCalls != 1 || !strings.Contains(w.Body.String(), "has closed") {
+		t.Fatalf("valid quit: status %d, calls %d, body %s", w.Code, quitCalls, w.Body.String())
+	}
+}
+
+// Rejection must still apply when the Origin itself is opaque or absent.
+func TestOpaqueOriginWithContradictoryProvenance(t *testing.T) {
+	s := serverTest(t)
+	for _, tc := range []struct {
+		name, origin, referer, site string
+	}{
+		{"cross-site fetch metadata", "null", "", "cross-site"},
+		{"same-site is not same-origin", "", "", "same-site"},
+		{"foreign referer", "null", "http://evil.invalid/attack", ""},
+		{"foreign explicit origin", "http://evil.invalid", "", "same-origin"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "http://127.0.0.1:43812/save", strings.NewReader(url.Values{
+				"_csrf": {s.CSRF}, "type": {"people"}, "name": {"Blocked"},
+			}.Encode()))
+			r.RemoteAddr = "127.0.0.1:49002"
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r.Header.Set("Origin", tc.origin)
+			r.Header.Set("Referer", tc.referer)
+			r.Header.Set("Sec-Fetch-Site", tc.site)
+			r.AddCookie(&http.Cookie{Name: "garage_session", Value: s.Session})
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != http.StatusForbidden {
+				t.Fatalf("refused unsafe provenance? status %d", w.Code)
+			}
+		})
+	}
+}

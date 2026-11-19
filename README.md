@@ -2,7 +2,7 @@
 
 An offline-first, single-user CRM for Linux, built as one Go application with SQLite and a polished local browser interface.
 
-**Build status:** `0.1.0-dev` — development build, not a v1 release. The governing product and engineering specifications are `PRD.md` / `EDD.md` v0.4.3. The implemented subset and the outstanding acceptance gates are documented in `docs/BUILD-STATUS.md`; the application must not be described as functionally complete or security certified.
+**Build status:** `0.1.3-dev` — development build, not a v1 release. The governing product and engineering specifications are `PRD.md` / `EDD.md` v0.4.4. The implemented subset and the outstanding acceptance gates are documented in `docs/BUILD-STATUS.md`; the application must not be described as functionally complete or security certified.
 
 ## What currently works
 
@@ -17,13 +17,13 @@ An offline-first, single-user CRM for Linux, built as one Go application with SQ
 
 ## Running locally
 
-The pre-release Linux amd64 binary requires **libsqlite3** installed (standard on Ubuntu); the source build needs Go 1.23+ and `libsqlite3-dev`.
+The Ubuntu `.deb` installs the executable to `/usr/bin/garage-crm` and launcher to `/usr/share/applications/garage-crm.desktop`, while retaining user data under `$XDG_DATA_HOME/garage-crm` or `~/.local/share/garage-crm/`. Downloaded packages are only installer inputs. The development Linux amd64 binary requires **libsqlite3** installed (standard on Ubuntu); the source build needs Go 1.23+ and `libsqlite3-dev`.
 
 ```text
 ./garage-crm serve
 ```
 
-The application opens the local browser automatically when `xdg-open` is available. If not, open the printed private starter HTML file in your own browser. Do not share that file. Writable data is under `~/.local/share/garage-crm/`, separate from the executable.
+Use the Ubuntu applications menu to launch the installed package. Select **Quit Garage CRM** in the sidebar to stop the local server safely. Closing the browser tab alone does not stop the process. The application opens the local browser automatically when `xdg-open` is available. If not, open the printed private starter HTML file in your own browser. Do not share that file. Writable data is under `~/.local/share/garage-crm/`, separate from the executable.
 
 Other commands:
 
@@ -44,17 +44,21 @@ go mod tidy
 gofmt -l ./cmd ./internal
 go vet ./...
 go test -race ./...
-go build ./cmd/garage-crm
+go build -ldflags="-X main.version=$(cat VERSION)" -o garage-crm ./cmd/garage-crm
 ```
 
 SQLite links through cgo to the system SQLite library. GitHub CI must test separately on each supported target architecture; this is not yet a self-contained AppImage. No network access is required at runtime.
 
 ## Scope and engineering doctrine
 
-`PRD.md` and `EDD.md` are the frozen v0.4.2 target. `docs/Garage-Publication-Method.md` governs build and publication. We follow [engineering-under-constraints](https://github.com/jonathanselby/engineering-under-constraints): smallest sufficient design, visible state, no speculative infrastructure, proven recovery and real-environment tests.
+`PRD.md` and `EDD.md` are the frozen v0.4.4 target. `docs/Garage-Publication-Method.md` governs build and publication. We follow [engineering-under-constraints](https://github.com/jonathanselby/engineering-under-constraints): smallest sufficient design, visible state, no speculative infrastructure, proven recovery and real-environment tests.
 
 V2 may introduce multi-user operation, scoped model assistance and optional external connectors after full versioned export/import compatibility is proven. None of that infrastructure belongs in v1.
 
 ## Security boundary
 
 The application listens only on 127.0.0.1. The Linux account and its filesystem permissions are the trust boundary; local data and exported archives are unencrypted. Do not assume that local malware running as the same account is prevented from reading them. **This is not a hardened or security-certified release.**
+
+## Upgrade and release hygiene
+
+For a downloaded `.deb` installer, run `sudo apt install /path/to/garage-crm_0.1.3~dev_amd64.deb`. This replaces the system executable; it does **not** install into the download directory or reset CRM records. Quit any running instance first. The immutable `v0.0.1` prerelease is a historical snapshot, not the current development build; development CI artefacts are not permanent releases. See `RELEASE.md` and `docs/BUILD-STATUS.md`.
